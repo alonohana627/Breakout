@@ -7,7 +7,9 @@ running the game are listed; updated in the same commit as each feature (see
 ## Build
 
 - Standalone CMake project on GameLib, pinned to commit `53e8c13` from GitHub.
-- Smoke run with the Vulkan validation layer required (`ctest --preset debug`).
+- Smoke runs with the Vulkan validation layer required (`ctest --preset debug`):
+  the start screen, an unthrottled demo game, and the demo through a resize
+  and a minimize/restore.
 
 ## Rules (`src/game`, GameLib::core and GameLib::ai only)
 
@@ -32,3 +34,9 @@ running the game are listed; updated in the same commit as each feature (see
 - Demo player built on GameLib's ai helpers (bounce prediction, reaction
   timer, steering) that aims varied returns, catches power-ups and misses now
   and then.
+
+## Controls
+
+- Left/Right or A/D move the paddle; Space or Enter launches the ball (and
+  releases a caught one); Escape quits.
+- `--demo`: the computer plays, starting over after each game over.

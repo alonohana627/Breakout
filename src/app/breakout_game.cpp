@@ -4,18 +4,39 @@
 
 namespace breakout::app {
 
-BreakoutGame::BreakoutGame(gamelib::app::App& app)
-    : m_session{m_seeds.next64(), app.tickSeconds()}
+using gamelib::platform::Key;
+
+BreakoutGame::BreakoutGame(gamelib::app::App& app, const bool demo)
+    : m_demoMode{demo}
+    , m_session{m_seeds.next64(), app.tickSeconds()}
     , m_demo{m_seeds.next64()}
 {
 }
 
+void BreakoutGame::onKey(gamelib::app::App& app, const gamelib::platform::KeyEvent& event)
+{
+    if (!event.pressed) {
+        return; // the paddle reads held keys in tick()
+    }
+    if (event.key == Key::Escape) {
+        app.requestQuit();
+    } else if (m_session.phase() == game::Phase::GameOver && (event.key == Key::Space || event.key == Key::Enter)) {
+        m_session = game::Session{m_seeds.next64(), app.tickSeconds()};
+    }
+}
+
+game::Input BreakoutGame::playerInput(const gamelib::platform::InputState& keys) const
+{
+    return {.move = static_cast<float>(keys.axis({Key::Left, Key::A}, {Key::Right, Key::D})),
+            .launch = keys.wasAnyPressed({Key::Space, Key::Enter})};
+}
+
 void BreakoutGame::tick(gamelib::app::App& app)
 {
-    if (m_session.phase() == game::Phase::GameOver) {
+    if (m_demoMode && m_session.phase() == game::Phase::GameOver) {
         m_session = game::Session{m_seeds.next64(), app.tickSeconds()}; // the demo starts over
     }
-    m_session.tick(m_demo.decide(m_session));
+    m_session.tick(m_demoMode ? m_demo.decide(m_session) : playerInput(app.input()));
     (void)m_session.takeEvents();
 }
 

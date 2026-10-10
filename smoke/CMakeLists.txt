@@ -22,3 +22,8 @@ endfunction()
 
 # The title screen (vsync on: about 10 s).
 breakout_smoke(title --frames 600)
+# The demo player on the playing screen, unthrottled: serves, rallies, bricks
+# and power-ups with the validation layer watching every frame.
+breakout_smoke(demo --demo --no-vsync --frames 20000)
+# Swapchain recreation while the demo plays: a resize, then minimize and restore.
+breakout_smoke(resize_minimize --demo --frames 300 --resize-at-frame 60 --minimize-at-frame 150)
