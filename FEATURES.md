@@ -67,3 +67,14 @@ running the game are listed; updated in the same commit as each feature (see
 - HUD on both sides of the field: seven-segment score, best and level
   digits, the level name, lives as balls, active power-ups with time bars,
   the combo count and a ball-speed meter.
+
+## Sound (synthesized with GameLib's chiptune synth, C major pentatonic)
+
+- Brick hits pitched a semitone higher per row towards the top, a crunchy
+  crack for tough bricks, a metallic clank off unbreakable ones; paddle,
+  wall and launch blips.
+- A power-up chime when a capsule is caught, a soft drop sound when one
+  falls out, a falling two-note when a timed power-up ends.
+- Combo milestones as a rising run pitched up with the combo; a life-lost
+  sting; a level-clear jingle; a game-over fall; menu move/select/back.
+- The title's attract demo is silent; the volume setting applies at once.

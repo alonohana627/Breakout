@@ -8,6 +8,7 @@
 #include <gamelib/audio/player.hpp>
 #include <gamelib/ui/menu.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <string>
 #include <utility>
@@ -25,6 +26,12 @@ constexpr float kGameOverInputDelay = 0.6f;
 // The last ball falls and the alarm fades before the game-over menu.
 constexpr float kGameOverDelay = 1.2f;
 
+// Brick sounds rise a semitone per row towards the top of the wall.
+float _rowPitch(const int row)
+{
+    return std::exp2(static_cast<float>(std::clamp(8 - row, -2, 10)) / 12.0f);
+}
+
 } // namespace
 
 BreakoutGame::BreakoutGame(gamelib::app::App& app, ProfileFile profile, const bool demo)
@@ -33,6 +40,7 @@ BreakoutGame::BreakoutGame(gamelib::app::App& app, ProfileFile profile, const bo
     , m_shapes{.brick = app.renderer().addShape(shaders::brick_frag),
                .capsule = app.renderer().addShape(shaders::capsule_frag),
                .backdrop = app.renderer().addShape(shaders::backdrop_frag)}
+    , m_sounds{app.audio(), renderSfx}
     , m_attract{[tick = app.tickSeconds()](const std::uint64_t seed) {
                     return Demo{.session = game::Session{seed, tick}, .player = game::DemoPlayer{seed * 31 + 7}};
                 },
@@ -100,6 +108,7 @@ void BreakoutGame::onKey(gamelib::app::App& app, const gamelib::platform::KeyEve
         if (event.key == Key::Escape || event.key == Key::P) {
             showScreen(Screen::Paused);
             app.input().releaseAll(); // releases now go to the menu
+            m_sounds.queue(app.sounds(), Sfx::MenuBack);
         }
         return;
     }
@@ -135,6 +144,14 @@ void BreakoutGame::handleMenu(gamelib::app::App& app, const Key key)
         app.requestQuit();
         break;
     default: break;
+    }
+    // Feedback after acting, so a new volume is heard right away.
+    switch (result.feedback) {
+    case gamelib::ui::MenuFeedback::None: break;
+    case gamelib::ui::MenuFeedback::Moved:
+    case gamelib::ui::MenuFeedback::Changed: m_sounds.queue(app.sounds(), Sfx::MenuMove); break;
+    case gamelib::ui::MenuFeedback::Selected: m_sounds.queue(app.sounds(), Sfx::MenuSelect); break;
+    case gamelib::ui::MenuFeedback::Back: m_sounds.queue(app.sounds(), Sfx::MenuBack); break;
     }
 }
 
@@ -175,17 +192,47 @@ void BreakoutGame::frame(gamelib::app::App& app, const gamelib::app::FrameInfo& 
     }
 }
 
-void BreakoutGame::handleEvents(gamelib::app::App&)
+void BreakoutGame::handleEvents(gamelib::app::App& app)
 {
     // The attract demo is silent and has no effects; its events are dropped.
     (void)m_attract.sim().session.takeEvents();
+    gamelib::audio::SoundQueue& queue = app.sounds();
     for (const game::Event& event : m_session.takeEvents()) {
         switch (event.kind) {
+        case game::EventKind::Launched: m_sounds.queue(queue, Sfx::Launch); break;
+        case game::EventKind::PaddleHit: m_sounds.queue(queue, Sfx::Paddle); break;
+        case game::EventKind::WallHit: m_sounds.queue(queue, Sfx::Wall); break;
+        case game::EventKind::BrickHit: m_sounds.queue(queue, Sfx::Crack, 1.0f, _rowPitch(event.row)); break;
+        case game::EventKind::BrickBroken:
+            m_sounds.queue(queue, event.brick == game::BrickKind::Tough ? Sfx::Crack : Sfx::Brick, 1.0f,
+                           _rowPitch(event.row));
+            if (event.brick == game::BrickKind::Tough) {
+                m_sounds.queue(queue, Sfx::Brick, 0.8f, _rowPitch(event.row));
+            }
+            break;
+        case game::EventKind::UnbreakableHit: m_sounds.queue(queue, Sfx::Clank); break;
+        case game::EventKind::PowerUpDropped: m_sounds.queue(queue, Sfx::Drop); break;
+        case game::EventKind::PowerUpCaught: m_sounds.queue(queue, Sfx::PowerUp); break;
+        case game::EventKind::PowerUpEnded: m_sounds.queue(queue, Sfx::PowerDown); break;
+        case game::EventKind::Combo:
+            // Up a whole tone per milestone, at most an octave.
+            m_sounds.queue(queue, Sfx::Combo, 1.0f,
+                           std::exp2(std::min(static_cast<float>(event.combo) / 5.0f, 6.0f) * 2.0f / 12.0f));
+            break;
+        case game::EventKind::BallLost: m_sounds.queue(queue, Sfx::BallLost); break;
+        case game::EventKind::LifeLost:
+            if (m_session.phase() != game::Phase::GameOver) {
+                m_sounds.queue(queue, Sfx::LifeLost);
+            }
+            break;
+        case game::EventKind::LevelCleared: m_sounds.queue(queue, Sfx::LevelClear); break;
         case game::EventKind::GameOver:
+            m_sounds.queue(queue, Sfx::GameOver);
             m_gameEnded = true;
             m_gameOverDelay.start(kGameOverDelay);
             break;
-        default: break;
+        case game::EventKind::PowerUpMissed:
+        case game::EventKind::LevelStarted: break;
         }
     }
 }

@@ -6,6 +6,7 @@ add_library(breakout_app STATIC
     breakout_game.cpp
     menus.cpp
     settings.cpp
+    sounds.cpp
     view.cpp)
 target_include_directories(breakout_app PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(breakout_app PUBLIC breakout_game GameLib::app GameLib::storage GameLib::ui GameLib::fx GameLib::ai)

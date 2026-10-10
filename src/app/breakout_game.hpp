@@ -4,6 +4,7 @@
 #include "menus.hpp"
 #include "session.hpp"
 #include "settings.hpp"
+#include "sounds.hpp"
 #include "view.hpp"
 
 #include <gamelib/ai/attract.hpp>
@@ -53,6 +54,7 @@ private:
     ProfileFile m_profile; // menus edit m_profile.value() in place
     Menus m_menus;
     Shapes m_shapes;
+    Sounds m_sounds;
     gamelib::core::Rng m_seeds{gamelib::core::randomSeed()};
     gamelib::ui::Screens<Screen> m_screens{Screen::Title};
     gamelib::ai::AttractMode<Demo> m_attract;
