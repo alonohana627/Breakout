@@ -37,12 +37,7 @@ if(GIT_FOUND)
     message(STATUS "Breakout: using GameLib ${_gamelib_revision} from ${gamelib_SOURCE_DIR}")
 endif()
 
-add_executable(breakout src/main.cpp)
-target_link_libraries(breakout PRIVATE GameLib::app)
-gamelib_target_warnings(breakout)
-gamelib_copy_runtime(breakout)
-# The game's own procedural shapes, embedded as SPIR-V.
-gamelib_add_shaders(breakout SHADERS shaders/orb.frag)
+add_subdirectory(src)
 
 if(BREAKOUT_SMOKE_TESTS)
     enable_testing()
