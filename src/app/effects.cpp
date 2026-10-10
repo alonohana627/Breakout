@@ -1,7 +1,8 @@
 #include "effects.hpp"
 
+#include <gamelib/core/easing.hpp>
+
 #include <algorithm>
-#include <cmath>
 
 namespace breakout::app {
 
@@ -11,15 +12,7 @@ using gamelib::core::Vec2;
 
 namespace {
 
-constexpr float kGravity = 1400.0f;      // canvas units per second squared, shards only
 constexpr float kFlashSeconds = 0.16f;
-constexpr std::size_t kMaxShards = 600;  // a multi-ball frenzy cannot grow the pool without bound
-
-float _easeOutCubic(const float t)
-{
-    const float u = 1.0f - std::clamp(t, 0.0f, 1.0f);
-    return 1.0f - u * u * u;
-}
 
 std::size_t _cellIndex(const gamelib::core::Cell cell)
 {
@@ -27,11 +20,6 @@ std::size_t _cellIndex(const gamelib::core::Cell cell)
 }
 
 } // namespace
-
-Effects::Effects()
-    : m_rng{gamelib::core::randomSeed()}
-{
-}
 
 void Effects::update(const float seconds)
 {
@@ -44,14 +32,7 @@ void Effects::update(const float seconds)
     for (gamelib::fx::Fade& fade : m_brickFlash) {
         fade.update(seconds);
     }
-    for (Shard& shard : m_shards) {
-        shard.age += seconds;
-        shard.velocity.y += kGravity * seconds;
-        shard.velocity *= std::pow(0.4f, seconds); // air drag
-        shard.position += shard.velocity * seconds;
-        shard.angle += shard.spin * seconds;
-    }
-    std::erase_if(m_shards, [](const Shard& s) { return s.age >= s.life; });
+    m_debris.update(seconds);
     for (Flash& flash : m_flashes) {
         flash.age += seconds;
     }
@@ -69,7 +50,7 @@ void Effects::clear()
     for (gamelib::fx::Fade& fade : m_brickFlash) {
         fade.clear();
     }
-    m_shards.clear();
+    m_debris.clear();
     m_flashes.clear();
     m_trails.clear();
 }
@@ -80,22 +61,22 @@ void Effects::shatter(const Rect& brick, const Color color, const Vec2 ballVeloc
     // Shards from a 5x2 grid over the brick, flung away from its center and a
     // little along the ball's direction.
     const Vec2 push = gamelib::core::normalized(ballVelocity) * 160.0f;
+    gamelib::core::Rng& rng = m_debris.rng();
     for (int y = 0; y < 2; ++y) {
         for (int x = 0; x < 5; ++x) {
-            if (m_shards.size() >= kMaxShards) {
-                return;
-            }
             const Vec2 at{brick.x + brick.width * (static_cast<float>(x) + 0.5f) / 5.0f,
                           brick.y + brick.height * (static_cast<float>(y) + 0.5f) / 2.0f};
             const Vec2 away = gamelib::core::normalized(at - brick.center() + Vec2{0.0f, 0.01f});
-            m_shards.push_back({.position = at,
-                                .velocity = away * m_rng.uniform(140.0f, 420.0f) + push
-                                            + Vec2{m_rng.uniform(-60.0f, 60.0f), m_rng.uniform(-220.0f, -40.0f)},
-                                .angle = m_rng.uniform(0.0f, 6.28f),
-                                .spin = m_rng.uniform(-14.0f, 14.0f),
-                                .size = m_rng.uniform(13.0f, 22.0f),
-                                .life = m_rng.uniform(0.45f, 0.8f),
-                                .color = color});
+            if (!m_debris.emit({.position = at,
+                                .velocity = away * rng.uniform(140.0f, 420.0f) + push
+                                            + Vec2{rng.uniform(-60.0f, 60.0f), rng.uniform(-220.0f, -40.0f)},
+                                .angle = rng.uniform(0.0f, 6.28f),
+                                .spin = rng.uniform(-14.0f, 14.0f),
+                                .size = rng.uniform(13.0f, 22.0f),
+                                .life = rng.uniform(0.45f, 0.8f),
+                                .color = color})) {
+                return; // the pool is full
+            }
         }
     }
 }
@@ -110,16 +91,12 @@ void Effects::flashBrick(const gamelib::core::Cell cell)
 
 void Effects::sparks(const Vec2 at, const Color color, const int count, const float speed)
 {
-    for (int i = 0; i < count && m_shards.size() < kMaxShards; ++i) {
-        const float angle = m_rng.uniform(3.4f, 6.0f); // mostly upwards
-        m_shards.push_back({.position = at,
-                            .velocity = gamelib::core::fromAngle(angle) * m_rng.uniform(0.4f, 1.0f) * speed,
-                            .angle = angle,
-                            .spin = 0.0f,
-                            .size = m_rng.uniform(3.0f, 5.0f),
-                            .life = m_rng.uniform(0.2f, 0.4f),
-                            .color = color});
-    }
+    m_debris.burst(at, count,
+                   {.direction = {3.4f, 6.0f}, // mostly upwards
+                    .speed = {0.4f * speed, speed},
+                    .size = {3.0f, 5.0f},
+                    .life = {0.2f, 0.4f},
+                    .color = color});
 }
 
 void Effects::recordBall(const std::uint32_t id, const Vec2 position)
@@ -144,17 +121,11 @@ void Effects::drawDebris(gamelib::draw::DrawList& list, const Vec2 offset) const
         // The flash swells a little and fades out fast.
         const float t = flash.age / kFlashSeconds;
         const float fade = (1.0f - t) * (1.0f - t);
-        const Rect r = flash.rect.expanded(12.0f * _easeOutCubic(t));
+        const Rect r = flash.rect.expanded(12.0f * gamelib::core::easeOutCubic(t));
         list.box({r.x + offset.x, r.y + offset.y, r.width, r.height}, flash.color.withAlpha(fade),
                  {.cornerRadius = 8.0f, .glowWidth = 24.0f, .glowColor = flash.color.withAlpha(0.6f * fade)});
     }
-    for (const Shard& shard : m_shards) {
-        const float t = shard.age / shard.life;
-        const float size = shard.size * (1.0f - 0.5f * t);
-        const Vec2 p = shard.position + offset;
-        list.box(Rect::fromCenter(p, {size, size * 0.7f}), shard.color.withAlpha(1.0f - t * t), {.cornerRadius = 1.5f},
-                 shard.angle);
-    }
+    m_debris.draw(list, offset); // GameLib's default style: boxes shrinking to half size and fading
 }
 
 void Effects::drawTrails(gamelib::draw::DrawList& list, const Vec2 offset, const Color color) const

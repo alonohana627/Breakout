@@ -6,7 +6,8 @@ running the game are listed; updated in the same commit as each feature (see
 
 ## Build
 
-- Standalone CMake project on GameLib, pinned to commit `53e8c13` from GitHub.
+- Standalone CMake project on GameLib, pinned to commit `9c489d1` (release
+  0.0.3) from GitHub.
 - Smoke runs with the Vulkan validation layer required (`ctest --preset debug`):
   the start screen, an unthrottled demo game, and the demo through a resize
   and a minimize/restore.
@@ -82,8 +83,8 @@ running the game are listed; updated in the same commit as each feature (see
 ## Juice (`src/app/effects.*`, GameLib fx)
 
 - Breaking bricks flash in their color and burst into spinning shards with
-  gravity; cracked bricks flash white; sparks off the paddle, walls,
-  unbreakable bricks and caught capsules.
+  gravity (GameLib `fx::Particles`); cracked bricks flash white; sparks off
+  the paddle, walls, unbreakable bricks and caught capsules.
 - Every ball (multi-ball included) leaves a fading trail; balls glow larger
   and hotter as they speed up; the paddle flashes on contact.
 - Screen shake and a red alarm tint on a lost life (shake can be turned off

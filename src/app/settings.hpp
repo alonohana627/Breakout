@@ -1,7 +1,6 @@
 #pragma once
 
-#include <gamelib/audio/player.hpp>
-#include <gamelib/core/options.hpp>
+#include <gamelib/app/settings.hpp>
 #include <gamelib/storage/persisted.hpp>
 
 #include <cstdint>
@@ -10,17 +9,14 @@
 namespace breakout::app {
 
 // What Breakout keeps between runs in breakout.ini: the player's settings and
-// the best score.
+// the best score. Sound volume and fullscreen are GameLib's standard settings.
 struct Profile {
-    gamelib::audio::VolumeLevel volume = gamelib::audio::VolumeLevel::Medium;
-    bool fullscreen = false;
+    gamelib::app::StandardSettings standard;
     bool screenShake = true;
     std::int64_t best = 0;
 
     friend bool operator==(const Profile&, const Profile&) = default;
 };
-
-inline constexpr gamelib::core::OptionSet<gamelib::audio::VolumeLevel, 4> kVolumes{{"OFF", "LOW", "MEDIUM", "HIGH"}};
 
 // The file, loaded with defaults for anything missing or broken and written
 // only when something changed (GameLib's storage::Persisted).

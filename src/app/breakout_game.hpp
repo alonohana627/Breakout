@@ -13,7 +13,7 @@
 #include <gamelib/core/rng.hpp>
 #include <gamelib/core/score.hpp>
 #include <gamelib/core/timers.hpp>
-#include <gamelib/ui/screens.hpp>
+#include <gamelib/ui/menu_screens.hpp>
 
 namespace breakout::app {
 
@@ -42,13 +42,10 @@ public:
 
 private:
     void startGame(gamelib::app::App& app);
-    void showScreen(Screen screen);
     void handleMenu(gamelib::app::App& app, gamelib::platform::Key key);
     void handleEvents(gamelib::app::App& app);
-    void applySettings(gamelib::app::App& app);
     void saveBest();
     [[nodiscard]] game::Input playerInput(const gamelib::platform::InputState& keys) const;
-    [[nodiscard]] gamelib::ui::Menu& activeMenu();
     [[nodiscard]] const game::Session& shownSession() const;
     void drawOverlay(gamelib::draw::DrawList& list, const gamelib::app::FrameInfo& info);
 
@@ -58,7 +55,7 @@ private:
     Sounds m_sounds;
     Effects m_effects;
     gamelib::core::Rng m_seeds{gamelib::core::randomSeed()};
-    gamelib::ui::Screens<Screen> m_screens{Screen::Title};
+    gamelib::ui::MenuScreens<Screen> m_screens{Screen::Title}; // binds m_menus: declared after them
     gamelib::ai::AttractMode<Demo> m_attract;
     gamelib::core::ScoreKeeper m_scores;
     gamelib::core::Cooldown m_gameOverDelay; // the last ball falls before the game-over menu

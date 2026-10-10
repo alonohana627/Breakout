@@ -2,6 +2,7 @@
 
 #include "palette.hpp"
 
+#include <gamelib/core/easing.hpp>
 #include <gamelib/draw/text.hpp>
 
 #include <algorithm>
@@ -35,15 +36,6 @@ constexpr std::string_view _letter(const game::PowerType type)
     return "?";
 }
 
-
-// Overshoots a little past 1 and settles: a playful landing.
-float _easeOutBack(const float t)
-{
-    constexpr float c1 = 1.70158f;
-    constexpr float c3 = c1 + 1.0f;
-    const float u = t - 1.0f;
-    return 1.0f + c3 * u * u * u + c1 * u * u;
-}
 std::uint32_t _seed(const gamelib::core::Cell cell, const int level)
 {
     std::uint32_t h = static_cast<std::uint32_t>(cell.x * 73856093) ^ static_cast<std::uint32_t>(cell.y * 19349663)
@@ -103,7 +95,7 @@ void _brick(gamelib::draw::DrawList& list, const ViewState& view, const gamelib:
     // with a small overshoot.
     const float rowDelay = 0.04f * static_cast<float>(cell.y) + 0.02f * static_cast<float>(cell.x % 3);
     const float t = std::clamp((view.intro - rowDelay) / 0.55f, 0.0f, 1.0f);
-    const Vec2 drop{0.0f, -(1.0f - _easeOutBack(t)) * (110.0f + 14.0f * static_cast<float>(cell.y))};
+    const Vec2 drop{0.0f, -(1.0f - gamelib::core::easeOutBack(t)) * (110.0f + 14.0f * static_cast<float>(cell.y))};
     const float appear = std::min(1.0f, t * 2.0f);
     list.add({.rect = _shifted(game::brickRect(cell).expanded(kBrickGlow), view.shake + drop),
               .color = body.withAlpha(appear),

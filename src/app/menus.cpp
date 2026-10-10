@@ -12,14 +12,14 @@ Menus buildMenus(Profile& profile)
         .gameOver = gamelib::ui::Menu{"GAME OVER", MainMenu}, // Escape leaves
     };
     menus.title.action("PLAY", Play)
-        .option("SOUND", profile.volume, kVolumes)
+        .option("SOUND", profile.standard.volume, gamelib::audio::kVolumeLevels)
         .toggle("SCREEN SHAKE", profile.screenShake)
-        .toggle("FULLSCREEN", profile.fullscreen)
+        .toggle("FULLSCREEN", profile.standard.fullscreen)
         .action("QUIT", Quit);
     menus.paused.action("RESUME", Resume)
-        .option("SOUND", profile.volume, kVolumes)
+        .option("SOUND", profile.standard.volume, gamelib::audio::kVolumeLevels)
         .toggle("SCREEN SHAKE", profile.screenShake)
-        .toggle("FULLSCREEN", profile.fullscreen)
+        .toggle("FULLSCREEN", profile.standard.fullscreen)
         .action("RESTART", Restart)
         .action("MAIN MENU", MainMenu)
         .action("QUIT", Quit);

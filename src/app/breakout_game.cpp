@@ -5,7 +5,7 @@
 #include "capsule_frag.spv.hpp"
 #include "palette.hpp"
 
-#include <gamelib/audio/player.hpp>
+#include <gamelib/app/settings.hpp>
 #include <gamelib/ui/menu.hpp>
 
 #include <algorithm>
@@ -70,9 +70,12 @@ BreakoutGame::BreakoutGame(gamelib::app::App& app, ProfileFile profile, const bo
     , m_session{m_seeds.next64(), app.tickSeconds()}
     , m_demo{m_seeds.next64()}
 {
+    m_screens.bind(Screen::Title, m_menus.title)
+        .bind(Screen::Paused, m_menus.paused)
+        .bind(Screen::GameOver, m_menus.gameOver, kGameOverInputDelay);
     m_profile.save(); // a missing file is written with the defaults, so it can be found and edited
     m_scores.loadBest(m_profile.value().best);
-    applySettings(app);
+    gamelib::app::applySettings(app, m_profile.value().standard);
     if (demo) {
         startGame(app);
     }
@@ -85,28 +88,8 @@ void BreakoutGame::startGame(gamelib::app::App& app)
     m_scores.reset();
     m_effects.clear();
     m_gameEnded = false;
-    showScreen(Screen::Playing);
-    // The key that started the game must not launch the ball: releaseAll()
-    // keeps its "pressed" transition, so clear that too.
-    app.input().releaseAll();
-    app.input().clearTransitions();
-}
-
-void BreakoutGame::showScreen(const Screen screen)
-{
-    m_screens.go(screen, m_time);
-    activeMenu().select(0);
-}
-
-gamelib::ui::Menu& BreakoutGame::activeMenu()
-{
-    switch (m_screens.current()) {
-    case Screen::Paused: return m_menus.paused;
-    case Screen::GameOver: return m_menus.gameOver;
-    case Screen::Title:
-    case Screen::Playing: break;
-    }
-    return m_menus.title;
+    m_screens.go(Screen::Playing, m_time);
+    app.input().releaseAll(); // the key that started the game must not launch the ball
 }
 
 const game::Session& BreakoutGame::shownSession() const
@@ -116,18 +99,16 @@ const game::Session& BreakoutGame::shownSession() const
 
 void BreakoutGame::onKey(gamelib::app::App& app, const gamelib::platform::KeyEvent& event)
 {
-    if (!event.pressed) {
-        return; // the paddle reads held keys in tick(); menus react to presses only
-    }
-    if (event.key == Key::F11) {
-        m_profile.value().fullscreen = !m_profile.value().fullscreen;
-        applySettings(app);
+    if (gamelib::app::toggleFullscreenKey(app, event, m_profile.value().standard)) {
         m_profile.save();
         return;
     }
+    if (!event.pressed) {
+        return; // the paddle reads held keys in tick(); menus react to presses only
+    }
     if (m_screens.is(Screen::Playing)) {
         if (event.key == Key::Escape || event.key == Key::P) {
-            showScreen(Screen::Paused);
+            m_screens.go(Screen::Paused, m_time);
             app.input().releaseAll(); // releases now go to the menu
             m_sounds.queue(app.sounds(), Sfx::MenuBack);
         }
@@ -138,28 +119,26 @@ void BreakoutGame::onKey(gamelib::app::App& app, const gamelib::platform::KeyEve
 
 void BreakoutGame::handleMenu(gamelib::app::App& app, const Key key)
 {
-    const std::optional<gamelib::ui::MenuInput> input = gamelib::ui::menuInput(key);
-    if (!input || (m_screens.is(Screen::GameOver) && !m_screens.inputReady(m_time, kGameOverInputDelay))) {
+    const std::optional<gamelib::ui::MenuResult> result = m_screens.handle(key, m_time);
+    if (!result) {
         return;
     }
-    const gamelib::ui::MenuResult result = activeMenu().handle(*input);
-    if (result.changed) {
-        applySettings(app);
+    if (result->changed) {
+        gamelib::app::applySettings(app, m_profile.value().standard);
         m_profile.save();
     }
-    switch (result.command) {
+    switch (result->command) {
     case Play:
     case PlayAgain:
     case Restart: startGame(app); break;
     case Resume:
         m_screens.go(Screen::Playing, m_time);
-        app.input().releaseAll();
-        app.input().clearTransitions(); // Enter on RESUME must not launch a waiting ball
+        app.input().releaseAll(); // Enter on RESUME must not launch a waiting ball
         break;
     case MainMenu:
         saveBest();
         m_effects.clear();
-        showScreen(Screen::Title);
+        m_screens.go(Screen::Title, m_time);
         break;
     case Quit:
         saveBest();
@@ -168,7 +147,7 @@ void BreakoutGame::handleMenu(gamelib::app::App& app, const Key key)
     default: break;
     }
     // Feedback after acting, so a new volume is heard right away.
-    switch (result.feedback) {
+    switch (result->feedback) {
     case gamelib::ui::MenuFeedback::None: break;
     case gamelib::ui::MenuFeedback::Moved:
     case gamelib::ui::MenuFeedback::Changed: m_sounds.queue(app.sounds(), Sfx::MenuMove); break;
@@ -219,7 +198,7 @@ void BreakoutGame::frame(gamelib::app::App& app, const gamelib::app::FrameInfo& 
             startGame(app); // endless
         } else {
             saveBest();
-            showScreen(Screen::GameOver);
+            m_screens.go(Screen::GameOver, m_time);
             app.input().releaseAll();
         }
     }
@@ -369,12 +348,6 @@ void BreakoutGame::drawOverlay(gamelib::draw::DrawList& list, const gamelib::app
         list.text("SPACE TO LAUNCH", centerX, 1028.0f,
                   {.pixelSize = 5.0f, .color = colors.textDim, .align = Align::Center});
     }
-}
-
-void BreakoutGame::applySettings(gamelib::app::App& app)
-{
-    app.setFullscreen(m_profile.value().fullscreen);
-    app.audio().setMasterVolume(gamelib::audio::gain(m_profile.value().volume));
 }
 
 } // namespace breakout::app

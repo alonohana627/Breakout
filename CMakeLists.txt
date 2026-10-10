@@ -24,7 +24,7 @@ option(BREAKOUT_SMOKE_TESTS "Register the smoke runs with CTest" ON)
 include(FetchContent)
 FetchContent_Declare(GameLib
     GIT_REPOSITORY https://github.com/alonohana627/GameLib.git
-    GIT_TAG        53e8c13e8783692cece4193198b34be62aa95e24
+    GIT_TAG        9c489d19888e0c8f18e9956ec27dafd7fae99deb
     GIT_SHALLOW    FALSE)  # a shallow clone cannot check out an arbitrary commit
 FetchContent_MakeAvailable(GameLib)
 

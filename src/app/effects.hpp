@@ -4,9 +4,9 @@
 
 #include <gamelib/core/color.hpp>
 #include <gamelib/core/math.hpp>
-#include <gamelib/core/rng.hpp>
 #include <gamelib/draw/draw_list.hpp>
 #include <gamelib/fx/juice.hpp>
+#include <gamelib/fx/particles.hpp>
 #include <gamelib/fx/popups.hpp>
 
 #include <array>
@@ -16,17 +16,15 @@
 
 namespace breakout::app {
 
-// Breakout's visual feedback ("juice"), assembled from GameLib's fx parts plus
-// a small shard pool: bricks flash and shatter, balls leave trails, the
-// paddle flashes on contact, the screen shakes on a lost life, the walls pulse
-// on a level clear, and popups announce combos and power-ups. Presentation
-// only: it runs on real frame time and never touches the session.
+// Breakout's visual feedback ("juice"), assembled from GameLib's fx parts:
+// bricks flash and shatter, balls leave trails, the paddle flashes on contact,
+// the screen shakes on a lost life, the walls pulse on a level clear, and
+// popups announce combos and power-ups. Presentation only: it runs on real
+// frame time and never touches the session.
 class Effects {
 public:
     static constexpr std::size_t kTrailLength = 12;
     using Trail = gamelib::fx::Trail<kTrailLength>;
-
-    Effects();
 
     void update(float seconds);
     void clear();
@@ -60,24 +58,15 @@ public:
     gamelib::fx::Popups popups{64.0f, 0.45f};
 
 private:
-    struct Shard {
-        gamelib::core::Vec2 position;
-        gamelib::core::Vec2 velocity;
-        float angle = 0.0f;
-        float spin = 0.0f;
-        float size = 8.0f;
-        float age = 0.0f;
-        float life = 0.6f;
-        gamelib::core::Color color;
-    };
     struct Flash {
         gamelib::core::Rect rect;
         gamelib::core::Color color;
         float age = 0.0f;
     };
 
-    gamelib::core::Rng m_rng;
-    std::vector<Shard> m_shards;
+    // Shards and sparks fall and slow down; at most 600, so a multi-ball frenzy
+    // stays bounded.
+    gamelib::fx::Particles m_debris{600, {0.0f, 1400.0f}, 0.4f};
     std::vector<Flash> m_flashes;
     std::array<gamelib::fx::Fade, static_cast<std::size_t>(game::kColumns * game::kMaxRows)> m_brickFlash;
     std::unordered_map<std::uint32_t, Trail> m_trails;

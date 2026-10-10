@@ -22,8 +22,8 @@ int main(int argc, char** argv)
         .windowSize = {1280, 720},
         .canvas = {1920, 1080},
         .tick = std::chrono::nanoseconds{1'000'000'000 / 120},
-        .fullscreen = profile->value().fullscreen,
-        .f11TogglesFullscreen = false, // Breakout handles F11 itself, to save the setting
+        .fullscreen = profile->value().standard.fullscreen,
+        .f11TogglesFullscreen = false, // F11 goes through toggleFullscreenKey, to save the setting
         .gameFlags = {"--demo"},
     };
     return gamelib::app::runMain(argc, argv, config, [&](gamelib::app::App& app) {

@@ -12,3 +12,4 @@ its combination by itself; CMake prints the revision it builds against
 |---|---|---|
 | Project from the new-game template (`build`) | `53e8c13` | clean build fetching the commit, 1/1 smoke run |
 | Playable game: rules, controls, shaders, screens, sound, juice, polish (`feat`) | `53e8c13` | clean debug build and release build with zero warnings, 3/3 smoke runs in each (title, unthrottled demo, resize + minimize) |
+| Port to GameLib 0.0.3: `gridFromText`, `StandardSettings`, `MenuScreens`, `fx::Particles`, easing, `releaseAll` fix (`refactor`) | `9c489d1` | clean debug and release builds with zero warnings, 3/3 smoke runs in each; title, serve, play with shards, pause, resume and game over checked on screenshots |

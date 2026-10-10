@@ -180,15 +180,9 @@ Level makeLevel(const int number, const std::uint64_t seed)
 
 Level parseLevel(std::string name, const std::span<const std::string_view> rows, gamelib::core::Rng& rng)
 {
-    const int height = std::min(static_cast<int>(rows.size()), kMaxRows);
-    Level level{.name = std::move(name), .bricks = Bricks{kColumns, height}};
-    for (int y = 0; y < height; ++y) {
-        const std::string_view row = rows[static_cast<std::size_t>(y)];
-        for (int x = 0; x < kColumns && x < static_cast<int>(row.size()); ++x) {
-            level.bricks.at({x, y}) = _brickFor(row[static_cast<std::size_t>(x)], rng);
-        }
-    }
-    return level;
+    const std::size_t height = std::min(rows.size(), static_cast<std::size_t>(kMaxRows));
+    return {.name = std::move(name),
+            .bricks = gamelib::core::gridFromText(rows.first(height), [&rng](const char c) { return _brickFor(c, rng); })};
 }
 
 int breakableCount(const Bricks& bricks)

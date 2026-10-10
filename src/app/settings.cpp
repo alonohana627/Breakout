@@ -27,12 +27,7 @@ ProfileFile openProfile(const std::filesystem::path& path)
         path,
         [](const IniFile& ini) {
             Profile profile; // defaults; the file only overrides
-            if (const auto value = ini.get("settings", "sound")) {
-                profile.volume = kVolumes.parse(*value).value_or(profile.volume);
-            }
-            if (const auto value = ini.get("settings", "fullscreen")) {
-                profile.fullscreen = gamelib::storage::parseBool(*value).value_or(profile.fullscreen);
-            }
+            gamelib::app::readStandardSettings(ini, profile.standard);
             if (const auto value = ini.get("settings", "screen_shake")) {
                 profile.screenShake = gamelib::storage::parseBool(*value).value_or(profile.screenShake);
             }
@@ -43,8 +38,7 @@ ProfileFile openProfile(const std::filesystem::path& path)
         },
         [](const Profile& profile, IniFile& ini) {
             ini.set("", "version", std::to_string(kFormatVersion));
-            ini.set("settings", "sound", gamelib::storage::toLower(kVolumes.name(profile.volume)));
-            ini.set("settings", "fullscreen", profile.fullscreen ? "true" : "false");
+            gamelib::app::writeStandardSettings(profile.standard, ini);
             ini.set("settings", "screen_shake", profile.screenShake ? "true" : "false");
             ini.set("scores", "best", std::to_string(profile.best));
         },

@@ -54,8 +54,8 @@ struct Level {
 // types of '*' bricks and generated layouts come from the seed.
 [[nodiscard]] Level makeLevel(int number, std::uint64_t seed);
 
-// Builds a level from a text grid, one string per brick row, kColumns
-// characters each:
+// Builds a level from a text grid (GameLib's core::gridFromText), one string
+// per brick row, kColumns characters each, at most kMaxRows rows:
 //   .  empty                 1-6  normal brick, color slot 0-5
 //   T  tough, 2 hits         X    tough, 3 hits
 //   #  unbreakable           *    power-up brick of a random type
