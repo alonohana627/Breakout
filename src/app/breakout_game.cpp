@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <string_view>
+#include <vector>
 #include <utility>
 
 namespace breakout::app {
@@ -30,6 +32,24 @@ constexpr float kGameOverDelay = 1.2f;
 float _rowPitch(const int row)
 {
     return std::exp2(static_cast<float>(std::clamp(8 - row, -2, 10)) / 12.0f);
+}
+
+// The brick cell whose rectangle holds `point` (event positions are brick centers).
+gamelib::core::Cell _cellAt(const gamelib::core::Vec2 point)
+{
+    return {static_cast<int>((point.x - game::kFieldLeft) / game::kCellWidth),
+            static_cast<int>((point.y - game::kBricksTop) / game::kCellHeight)};
+}
+
+std::string_view _powerPopup(const game::PowerType type)
+{
+    switch (type) {
+    case game::PowerType::Wide: return "WIDE PADDLE!";
+    case game::PowerType::Multi: return "MULTI BALL!";
+    case game::PowerType::Slow: return "SLOW BALL!";
+    case game::PowerType::Sticky: return "STICKY PADDLE!";
+    }
+    return "";
 }
 
 } // namespace
@@ -63,6 +83,7 @@ void BreakoutGame::startGame(gamelib::app::App& app)
     m_session = game::Session{m_seeds.next64(), app.tickSeconds()};
     m_demo = game::DemoPlayer{m_seeds.next64()};
     m_scores.reset();
+    m_effects.clear();
     m_gameEnded = false;
     showScreen(Screen::Playing);
     // The key that started the game must not launch the ball: releaseAll()
@@ -137,6 +158,7 @@ void BreakoutGame::handleMenu(gamelib::app::App& app, const Key key)
         break;
     case MainMenu:
         saveBest();
+        m_effects.clear();
         showScreen(Screen::Title);
         break;
     case Quit:
@@ -177,7 +199,18 @@ void BreakoutGame::frame(gamelib::app::App& app, const gamelib::app::FrameInfo& 
 {
     m_time = info.time;
     m_gameOverDelay.update(info.seconds);
+    if (!m_screens.is(Screen::Paused)) {
+        m_effects.update(info.seconds); // effects freeze with the game while paused
+    }
     handleEvents(app);
+    if (m_screens.is(Screen::Playing)) {
+        std::vector<std::uint32_t> alive;
+        for (const game::Ball& ball : m_session.balls()) {
+            m_effects.recordBall(ball.id, ball.position.at(info.alpha));
+            alive.push_back(ball.id);
+        }
+        m_effects.dropMissingTrails(alive);
+    }
     m_scores.set(m_session.score());
 
     if (m_gameEnded && m_gameOverDelay.ready() && m_screens.is(Screen::Playing)) {
@@ -197,35 +230,61 @@ void BreakoutGame::handleEvents(gamelib::app::App& app)
     // The attract demo is silent and has no effects; its events are dropped.
     (void)m_attract.sim().session.takeEvents();
     gamelib::audio::SoundQueue& queue = app.sounds();
+    const Palette& colors = palette();
     for (const game::Event& event : m_session.takeEvents()) {
         switch (event.kind) {
         case game::EventKind::Launched: m_sounds.queue(queue, Sfx::Launch); break;
-        case game::EventKind::PaddleHit: m_sounds.queue(queue, Sfx::Paddle); break;
-        case game::EventKind::WallHit: m_sounds.queue(queue, Sfx::Wall); break;
-        case game::EventKind::BrickHit: m_sounds.queue(queue, Sfx::Crack, 1.0f, _rowPitch(event.row)); break;
+        case game::EventKind::PaddleHit:
+            m_sounds.queue(queue, Sfx::Paddle);
+            m_effects.paddleFlash.trigger();
+            m_effects.sparks(event.position + gamelib::core::Vec2{0.0f, game::kBallRadius}, colors.paddleGlow, 6, 320.0f);
+            break;
+        case game::EventKind::WallHit:
+            m_sounds.queue(queue, Sfx::Wall);
+            m_effects.sparks(event.position, colors.wall, 3, 220.0f);
+            break;
+        case game::EventKind::BrickHit:
+            m_sounds.queue(queue, Sfx::Crack, 1.0f, _rowPitch(event.row));
+            m_effects.flashBrick(_cellAt(event.position));
+            break;
         case game::EventKind::BrickBroken:
+            m_effects.shatter(game::brickRect(_cellAt(event.position)), brickColor(event.brick, event.color, event.power), {});
             m_sounds.queue(queue, event.brick == game::BrickKind::Tough ? Sfx::Crack : Sfx::Brick, 1.0f,
                            _rowPitch(event.row));
             if (event.brick == game::BrickKind::Tough) {
                 m_sounds.queue(queue, Sfx::Brick, 0.8f, _rowPitch(event.row));
             }
             break;
-        case game::EventKind::UnbreakableHit: m_sounds.queue(queue, Sfx::Clank); break;
+        case game::EventKind::UnbreakableHit:
+            m_sounds.queue(queue, Sfx::Clank);
+            m_effects.sparks(event.position, colors.rivet, 6, 300.0f);
+            break;
         case game::EventKind::PowerUpDropped: m_sounds.queue(queue, Sfx::Drop); break;
-        case game::EventKind::PowerUpCaught: m_sounds.queue(queue, Sfx::PowerUp); break;
+        case game::EventKind::PowerUpCaught:
+            m_sounds.queue(queue, Sfx::PowerUp);
+            m_effects.paddleFlash.trigger();
+            m_effects.sparks(event.position, powerColor(event.power), 14, 420.0f);
+            m_effects.popups.add(std::string{_powerPopup(event.power)}, powerColor(event.power), 1.1f);
+            break;
         case game::EventKind::PowerUpEnded: m_sounds.queue(queue, Sfx::PowerDown); break;
         case game::EventKind::Combo:
             // Up a whole tone per milestone, at most an octave.
             m_sounds.queue(queue, Sfx::Combo, 1.0f,
                            std::exp2(std::min(static_cast<float>(event.combo) / 5.0f, 6.0f) * 2.0f / 12.0f));
+            m_effects.popups.add("COMBO X" + std::to_string(event.combo), colors.accent, 0.9f);
             break;
         case game::EventKind::BallLost: m_sounds.queue(queue, Sfx::BallLost); break;
         case game::EventKind::LifeLost:
             if (m_session.phase() != game::Phase::GameOver) {
                 m_sounds.queue(queue, Sfx::LifeLost);
             }
+            m_effects.shake.trigger();
+            m_effects.alarm.trigger();
             break;
-        case game::EventKind::LevelCleared: m_sounds.queue(queue, Sfx::LevelClear); break;
+        case game::EventKind::LevelCleared:
+            m_sounds.queue(queue, Sfx::LevelClear);
+            m_effects.wallPulse.trigger();
+            break;
         case game::EventKind::GameOver:
             m_sounds.queue(queue, Sfx::GameOver);
             m_gameEnded = true;
@@ -246,11 +305,21 @@ void BreakoutGame::saveBest()
 void BreakoutGame::draw(gamelib::app::App& app, gamelib::draw::DrawList& list, const gamelib::app::FrameInfo& info)
 {
     const bool moving = m_screens.is(Screen::Playing) || m_screens.is(Screen::Title);
+    const bool title = m_screens.is(Screen::Title);
     const ViewState view{.session = shownSession(),
                          .shapes = m_shapes,
                          .alpha = moving ? info.alpha : 1.0f,
-                         .best = m_scores.best()};
+                         .shake = m_profile.value().screenShake ? m_effects.shake.offset(info.time) : gamelib::core::Vec2{},
+                         .best = m_scores.best(),
+                         .wallPulse = title ? 0.0f : m_effects.wallPulse.value(),
+                         .alarm = title ? 0.0f : m_effects.alarm.value() * 0.5f,
+                         .effects = title ? nullptr : &m_effects};
     drawBackdrop(list, view);
+    if (!title) {
+        // Under the bricks and balls: the popups never hide the play.
+        m_effects.popups.draw(list, {(game::kFieldLeft + game::kFieldRight) / 2.0f, 640.0f},
+                              {.pixelSize = 7.0f, .align = Align::Center, .shadow = true});
+    }
     drawField(list, view);
     drawHud(list, view);
 

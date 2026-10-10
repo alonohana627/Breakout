@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ai.hpp"
+#include "effects.hpp"
 #include "menus.hpp"
 #include "session.hpp"
 #include "settings.hpp"
@@ -55,6 +56,7 @@ private:
     Menus m_menus;
     Shapes m_shapes;
     Sounds m_sounds;
+    Effects m_effects;
     gamelib::core::Rng m_seeds{gamelib::core::randomSeed()};
     gamelib::ui::Screens<Screen> m_screens{Screen::Title};
     gamelib::ai::AttractMode<Demo> m_attract;

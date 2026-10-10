@@ -4,6 +4,7 @@
 # stays here is Breakout's content and look.
 add_library(breakout_app STATIC
     breakout_game.cpp
+    effects.cpp
     menus.cpp
     settings.cpp
     sounds.cpp

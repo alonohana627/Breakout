@@ -68,6 +68,7 @@ struct Paddle {
 };
 
 struct Ball {
+    std::uint32_t id = 0;           // unique within a session, for presentation (trails)
     gamelib::core::Interpolated<gamelib::core::Vec2> position;
     gamelib::core::Vec2 velocity;   // direction matters; the speed is the session's
     bool attached = false;          // riding on the paddle (serve or Sticky)
@@ -193,6 +194,7 @@ private:
     int m_bricksLeft = 0;
     Paddle m_paddle;
     std::vector<Ball> m_balls;
+    std::uint32_t m_nextBallId = 0;
     std::vector<PowerUp> m_powerUps;
     float m_levelSpeed = 0.0f; // the ball speed this level started with
     float m_speed = 0.0f;

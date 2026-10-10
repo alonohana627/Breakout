@@ -78,3 +78,14 @@ running the game are listed; updated in the same commit as each feature (see
 - Combo milestones as a rising run pitched up with the combo; a life-lost
   sting; a level-clear jingle; a game-over fall; menu move/select/back.
 - The title's attract demo is silent; the volume setting applies at once.
+
+## Juice (`src/app/effects.*`, GameLib fx)
+
+- Breaking bricks flash in their color and burst into spinning shards with
+  gravity; cracked bricks flash white; sparks off the paddle, walls,
+  unbreakable bricks and caught capsules.
+- Every ball (multi-ball included) leaves a fading trail; balls glow larger
+  and hotter as they speed up; the paddle flashes on contact.
+- Screen shake and a red alarm tint on a lost life (shake can be turned off
+  in the settings); the walls pulse on a level clear.
+- Popups for combo milestones and caught power-ups, drawn under the play.

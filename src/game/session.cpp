@@ -101,7 +101,7 @@ void Session::serve()
     m_combo = 0;
     // A small random offset, so a launch without moving is not always straight up.
     const float offset = m_rng.uniform(-0.3f, 0.3f) * m_paddle.width.value() / 2.0f;
-    Ball ball{.attached = true, .attachOffset = offset};
+    Ball ball{.id = m_nextBallId++, .attached = true, .attachOffset = offset};
     ball.position.snap({m_paddle.x.value() + offset, kPaddleY - kPaddleHeight / 2.0f - kBallRadius});
     m_balls.push_back(ball);
 }
@@ -399,6 +399,7 @@ void Session::catchPowerUp(const PowerType type)
                 const float angle = sign * _radians(m_rules.multiSpreadDegrees);
                 const Vec2 v = gamelib::core::normalized(ball.velocity);
                 Ball split = ball;
+                split.id = m_nextBallId++;
                 split.velocity = steepened({v.x * std::cos(angle) - v.y * std::sin(angle),
                                             v.x * std::sin(angle) + v.y * std::cos(angle)});
                 m_balls.push_back(split);

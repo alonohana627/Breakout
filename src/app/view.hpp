@@ -1,5 +1,6 @@
 #pragma once
 
+#include "effects.hpp"
 #include "session.hpp"
 
 #include <gamelib/core/math.hpp>
@@ -27,7 +28,11 @@ struct ViewState {
     std::int64_t best = 0;
     float wallPulse = 0.0f;    // 0..1, level clear
     float alarm = 0.0f;        // 0..1, life lost
+    const Effects* effects = nullptr; // none for the attract demo
 };
+
+// The color a brick of this kind shows (shards use it too).
+[[nodiscard]] gamelib::core::Color brickColor(game::BrickKind kind, std::uint8_t slot, game::PowerType power);
 
 void drawBackdrop(gamelib::draw::DrawList& list, const ViewState& view);
 // Bricks, power-ups, paddle and balls.

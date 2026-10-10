@@ -94,7 +94,7 @@ void _brick(gamelib::draw::DrawList& list, const ViewState& view, const gamelib:
               .color = body,
               .color2 = light.withAlpha(glowAlpha),
               .shape = view.shapes.brick,
-              .params = {damage, 0.0f, kBrickGlow, innerLight},
+              .params = {damage, view.effects != nullptr ? view.effects->brickFlash(cell) : 0.0f, kBrickGlow, innerLight},
               .bits = std::uint64_t{_seed(cell, view.session.level())} | (std::uint64_t{kind} << 32)});
 }
 
@@ -104,6 +104,19 @@ void _label(gamelib::draw::DrawList& list, const std::string_view text, const fl
 }
 
 } // namespace
+
+Color brickColor(const game::BrickKind kind, const std::uint8_t slot, const game::PowerType power)
+{
+    const Palette& colors = palette();
+    switch (kind) {
+    case game::BrickKind::Tough: return colors.tough2;
+    case game::BrickKind::Unbreakable: return colors.unbreakable;
+    case game::BrickKind::PowerUp: return powerColor(power);
+    case game::BrickKind::Normal:
+    case game::BrickKind::None: break;
+    }
+    return colors.bricks[slot % colors.bricks.size()];
+}
 
 void drawBackdrop(gamelib::draw::DrawList& list, const ViewState& view)
 {
@@ -132,6 +145,9 @@ void drawField(gamelib::draw::DrawList& list, const ViewState& view)
             }
         }
     }
+    if (view.effects != nullptr) {
+        view.effects->drawDebris(list, view.shake);
+    }
 
     for (const game::PowerUp& powerUp : session.powerUps()) {
         const Vec2 center = powerUp.position.at(alpha) + view.shake;
@@ -150,16 +166,23 @@ void drawField(gamelib::draw::DrawList& list, const ViewState& view)
     const Color rim = sticky ? powerColor(game::PowerType::Sticky) : colors.paddleGlow;
     const Rect paddleRect = Rect::fromCenter({paddle.x.at(alpha), game::kPaddleY},
                                              {paddle.width.at(alpha), game::kPaddleHeight});
-    list.box(_shifted(paddleRect, view.shake), colors.paddle,
+    const float flash = view.effects != nullptr ? view.effects->paddleFlash.value() : 0.0f;
+    list.box(_shifted(paddleRect.expanded(2.0f * flash), view.shake), gamelib::core::mix(colors.paddle, Color{1.0f, 1.0f, 1.0f, 1.0f}, flash),
              {.cornerRadius = game::kPaddleHeight / 2.0f,
               .borderWidth = 4.0f,
               .borderColor = rim,
               .glowWidth = 22.0f,
-              .glowColor = rim.withAlpha(0.55f)});
+              .glowColor = rim.withAlpha(0.55f + 0.4f * flash)});
 
+    if (view.effects != nullptr) {
+        view.effects->drawTrails(list, view.shake, colors.ballGlow);
+    }
+    // Faster balls glow hotter.
+    const float heat = session.speedProgress();
     for (const game::Ball& ball : session.balls()) {
         list.circle(ball.position.at(alpha) + view.shake, game::kBallRadius, colors.ball,
-                    {.glowWidth = 16.0f, .glowColor = colors.ballGlow.withAlpha(0.7f)});
+                    {.glowWidth = 14.0f + 10.0f * heat,
+                     .glowColor = gamelib::core::mix(colors.ballGlow, colors.danger, heat * 0.6f).withAlpha(0.65f + 0.3f * heat)});
     }
 }
 
