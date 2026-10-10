@@ -11,3 +11,4 @@ its combination by itself; CMake prints the revision it builds against
 | Breakout change | GameLib revision | Validated |
 |---|---|---|
 | Project from the new-game template (`build`) | `53e8c13` | clean build fetching the commit, 1/1 smoke run |
+| Playable game: rules, controls, shaders, screens, sound, juice, polish (`feat`) | `53e8c13` | clean debug build and release build with zero warnings, 3/3 smoke runs in each (title, unthrottled demo, resize + minimize) |

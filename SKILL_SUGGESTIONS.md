@@ -17,11 +17,13 @@ In `~/.claude/skills/` (checked 2026-10-10):
 - cpp-debugging-profiling
 - cpp-testing
 - cpp26-developer
+- deterministic-replay-testing (installed during this game)
 - game-audio-developer
 - game-engine-developer
 - game-feel-designer
 - game-library-extraction
 - game-persistence
+- game-ui-text-and-dialogue (installed during this game)
 - game-visual-design
 - glfw-platform-developer
 - glsl-shader-build-embedding
@@ -36,6 +38,7 @@ In `~/.claude/skills/` (checked 2026-10-10):
 - tilemap-and-camera-2d (installed during this game)
 - vulkan-app-smoke-testing
 - vulkan-developer
+- vulkan-offscreen-postprocess (installed during this game)
 - vulkan-text-and-ui
 - win32-game-window-automation
 - windows-release-packaging
