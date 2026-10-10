@@ -40,7 +40,7 @@ constexpr std::array kDesigns{
         "#..........#",
         "#.TTTTTTTT.#",
         "#.T666666T.#",
-        "#.T6W55K6T.#",
+        "#.T6W55C6T.#",
         "#.T666666T.#",
         "#.TTTTTTTT.#",
         "#....##....#",
@@ -50,7 +50,7 @@ constexpr std::array kDesigns{
     Design{"CHECKERS", {
         "1.2.3.4.5.6.",
         ".1.2.3.4.5.6",
-        "X.K.X.X.S.X.",
+        "X.C.X.X.S.X.",
         ".6.5.4.3.2.1",
         "6.5.4.3.2.1.",
         ".X.X.W.X.X.X",
@@ -103,7 +103,7 @@ Brick _brickFor(const char c, gamelib::core::Rng& rng)
     case 'W': return power(PowerType::Wide);
     case 'M': return power(PowerType::Multi);
     case 'S': return power(PowerType::Slow);
-    case 'K': return power(PowerType::Sticky);
+    case 'C': return power(PowerType::Sticky);
     default: return Brick{};
     }
 }
@@ -116,7 +116,7 @@ Level _generate(const int number, gamelib::core::Rng& rng)
     const int rows = std::clamp(6 + depth / 2, 6, 10);
     const float toughChance = std::min(0.12f + 0.04f * static_cast<float>(depth), 0.45f);
     const float threeHitShare = std::min(0.2f + 0.05f * static_cast<float>(depth), 0.6f);
-    const int colorPattern = static_cast<int>(rng.below(3)); // stripes, columns or diagonals
+    const int colorPattern = static_cast<int>(rng.below(3)); // stripes, columns or chevrons
 
     for (;;) {
         std::array<std::string, kMaxRows> text;
@@ -140,7 +140,7 @@ Level _generate(const int number, gamelib::core::Rng& rng)
                     if (colorPattern == 1) {
                         slot = col;
                     } else if (colorPattern == 2) {
-                        slot = row + col;
+                        slot = row + (kColumns / 2 - 1 - col); // chevrons once mirrored
                     }
                     c = static_cast<char>('1' + (rows - 1 - slot % 6 + 6) % 6);
                 }

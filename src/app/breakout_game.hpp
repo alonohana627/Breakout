@@ -2,6 +2,7 @@
 
 #include "ai.hpp"
 #include "session.hpp"
+#include "view.hpp"
 
 #include <gamelib/app/app.hpp>
 #include <gamelib/core/rng.hpp>
@@ -26,6 +27,7 @@ private:
     bool m_demoMode;
     game::Session m_session;
     game::DemoPlayer m_demo;
+    Shapes m_shapes;
 };
 
 } // namespace breakout::app

@@ -59,7 +59,7 @@ struct Level {
 //   .  empty                 1-6  normal brick, color slot 0-5
 //   T  tough, 2 hits         X    tough, 3 hits
 //   #  unbreakable           *    power-up brick of a random type
-//   W M S K  power-up brick: wide, multi, slow, sticky
+//   W M S C  power-up brick: wide, multi, slow, sticky (catch)
 // Unknown characters are empty cells.
 [[nodiscard]] Level parseLevel(std::string name, std::span<const std::string_view> rows, gamelib::core::Rng& rng);
 

@@ -40,3 +40,21 @@ running the game are listed; updated in the same commit as each feature (see
 - Left/Right or A/D move the paddle; Space or Enter launches the ball (and
   releases a caught one); Escape quits.
 - `--demo`: the computer plays, starting over after each game over.
+
+## Look (all procedural shaders)
+
+- Backdrop (`shaders/backdrop.frag`): a dark surround with a vignette, the
+  playfield well with a faint grid and drifting noise haze, glowing walls on
+  three sides; supports a wall pulse and a red alarm tint.
+- Bricks (`shaders/brick.frag`): glowing rounded boxes with a bevel lit from
+  the top and an inner light; tough bricks are brushed metal that cracks with
+  each hit, the cracks glowing from inside; unbreakable bricks are dark
+  striped plates with rivets; power-up bricks show a pulsing core in the
+  power-up's color.
+- Power-up capsules (`shaders/capsule.frag`): cylinder-shaded pills with a
+  rolling light band and a letter (W wide, M multi, S slow, C sticky).
+- Glowing paddle (its rim turns yellow while sticky) and glowing ball;
+  smooth interpolated motion at any frame rate.
+- HUD on both sides of the field: seven-segment score, best and level
+  digits, the level name, lives as balls, active power-ups with time bars,
+  the combo count and a ball-speed meter.

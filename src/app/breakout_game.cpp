@@ -1,6 +1,8 @@
 #include "breakout_game.hpp"
 
-#include "view.hpp"
+#include "backdrop_frag.spv.hpp"
+#include "brick_frag.spv.hpp"
+#include "capsule_frag.spv.hpp"
 
 namespace breakout::app {
 
@@ -10,6 +12,9 @@ BreakoutGame::BreakoutGame(gamelib::app::App& app, const bool demo)
     : m_demoMode{demo}
     , m_session{m_seeds.next64(), app.tickSeconds()}
     , m_demo{m_seeds.next64()}
+    , m_shapes{.brick = app.renderer().addShape(shaders::brick_frag),
+               .capsule = app.renderer().addShape(shaders::capsule_frag),
+               .backdrop = app.renderer().addShape(shaders::backdrop_frag)}
 {
 }
 
@@ -42,7 +47,10 @@ void BreakoutGame::tick(gamelib::app::App& app)
 
 void BreakoutGame::draw(gamelib::app::App&, gamelib::draw::DrawList& list, const gamelib::app::FrameInfo& info)
 {
-    drawSession(list, m_session, info.alpha);
+    const ViewState view{.session = m_session, .shapes = m_shapes, .alpha = info.alpha};
+    drawBackdrop(list, view);
+    drawField(list, view);
+    drawHud(list, view);
 }
 
 } // namespace breakout::app
