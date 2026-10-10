@@ -3,30 +3,138 @@
 #include "backdrop_frag.spv.hpp"
 #include "brick_frag.spv.hpp"
 #include "capsule_frag.spv.hpp"
+#include "palette.hpp"
+
+#include <gamelib/audio/player.hpp>
+#include <gamelib/ui/menu.hpp>
+
+#include <cmath>
+#include <string>
+#include <utility>
 
 namespace breakout::app {
 
+using gamelib::draw::Align;
 using gamelib::platform::Key;
 
-BreakoutGame::BreakoutGame(gamelib::app::App& app, const bool demo)
-    : m_demoMode{demo}
-    , m_session{m_seeds.next64(), app.tickSeconds()}
-    , m_demo{m_seeds.next64()}
+namespace {
+
+// Menu keys are ignored this long after the game-over menu appears, so a key
+// meant for the last ball does not instantly start the next game.
+constexpr float kGameOverInputDelay = 0.6f;
+// The last ball falls and the alarm fades before the game-over menu.
+constexpr float kGameOverDelay = 1.2f;
+
+} // namespace
+
+BreakoutGame::BreakoutGame(gamelib::app::App& app, ProfileFile profile, const bool demo)
+    : m_profile{std::move(profile)}
+    , m_menus{buildMenus(m_profile.value())}
     , m_shapes{.brick = app.renderer().addShape(shaders::brick_frag),
                .capsule = app.renderer().addShape(shaders::capsule_frag),
                .backdrop = app.renderer().addShape(shaders::backdrop_frag)}
+    , m_attract{[tick = app.tickSeconds()](const std::uint64_t seed) {
+                    return Demo{.session = game::Session{seed, tick}, .player = game::DemoPlayer{seed * 31 + 7}};
+                },
+                [](Demo& d, float) { d.session.tick(d.player.decide(d.session)); },
+                [](const Demo& d) { return d.session.phase() == game::Phase::GameOver; }, m_seeds.next64()}
+    , m_demoMode{demo}
+    , m_session{m_seeds.next64(), app.tickSeconds()}
+    , m_demo{m_seeds.next64()}
 {
+    m_profile.save(); // a missing file is written with the defaults, so it can be found and edited
+    m_scores.loadBest(m_profile.value().best);
+    applySettings(app);
+    if (demo) {
+        startGame(app);
+    }
+}
+
+void BreakoutGame::startGame(gamelib::app::App& app)
+{
+    m_session = game::Session{m_seeds.next64(), app.tickSeconds()};
+    m_demo = game::DemoPlayer{m_seeds.next64()};
+    m_scores.reset();
+    m_gameEnded = false;
+    showScreen(Screen::Playing);
+    // The key that started the game must not launch the ball: releaseAll()
+    // keeps its "pressed" transition, so clear that too.
+    app.input().releaseAll();
+    app.input().clearTransitions();
+}
+
+void BreakoutGame::showScreen(const Screen screen)
+{
+    m_screens.go(screen, m_time);
+    activeMenu().select(0);
+}
+
+gamelib::ui::Menu& BreakoutGame::activeMenu()
+{
+    switch (m_screens.current()) {
+    case Screen::Paused: return m_menus.paused;
+    case Screen::GameOver: return m_menus.gameOver;
+    case Screen::Title:
+    case Screen::Playing: break;
+    }
+    return m_menus.title;
+}
+
+const game::Session& BreakoutGame::shownSession() const
+{
+    return m_screens.is(Screen::Title) ? m_attract.sim().session : m_session;
 }
 
 void BreakoutGame::onKey(gamelib::app::App& app, const gamelib::platform::KeyEvent& event)
 {
     if (!event.pressed) {
-        return; // the paddle reads held keys in tick()
+        return; // the paddle reads held keys in tick(); menus react to presses only
     }
-    if (event.key == Key::Escape) {
+    if (event.key == Key::F11) {
+        m_profile.value().fullscreen = !m_profile.value().fullscreen;
+        applySettings(app);
+        m_profile.save();
+        return;
+    }
+    if (m_screens.is(Screen::Playing)) {
+        if (event.key == Key::Escape || event.key == Key::P) {
+            showScreen(Screen::Paused);
+            app.input().releaseAll(); // releases now go to the menu
+        }
+        return;
+    }
+    handleMenu(app, event.key);
+}
+
+void BreakoutGame::handleMenu(gamelib::app::App& app, const Key key)
+{
+    const std::optional<gamelib::ui::MenuInput> input = gamelib::ui::menuInput(key);
+    if (!input || (m_screens.is(Screen::GameOver) && !m_screens.inputReady(m_time, kGameOverInputDelay))) {
+        return;
+    }
+    const gamelib::ui::MenuResult result = activeMenu().handle(*input);
+    if (result.changed) {
+        applySettings(app);
+        m_profile.save();
+    }
+    switch (result.command) {
+    case Play:
+    case PlayAgain:
+    case Restart: startGame(app); break;
+    case Resume:
+        m_screens.go(Screen::Playing, m_time);
+        app.input().releaseAll();
+        app.input().clearTransitions(); // Enter on RESUME must not launch a waiting ball
+        break;
+    case MainMenu:
+        saveBest();
+        showScreen(Screen::Title);
+        break;
+    case Quit:
+        saveBest();
         app.requestQuit();
-    } else if (m_session.phase() == game::Phase::GameOver && (event.key == Key::Space || event.key == Key::Enter)) {
-        m_session = game::Session{m_seeds.next64(), app.tickSeconds()};
+        break;
+    default: break;
     }
 }
 
@@ -38,19 +146,113 @@ game::Input BreakoutGame::playerInput(const gamelib::platform::InputState& keys)
 
 void BreakoutGame::tick(gamelib::app::App& app)
 {
-    if (m_demoMode && m_session.phase() == game::Phase::GameOver) {
-        m_session = game::Session{m_seeds.next64(), app.tickSeconds()}; // the demo starts over
+    if (m_screens.is(Screen::Title)) {
+        m_attract.tick(app.tickSeconds());
+        return;
+    }
+    if (!m_screens.is(Screen::Playing)) {
+        return; // paused or game over: the session is frozen
     }
     m_session.tick(m_demoMode ? m_demo.decide(m_session) : playerInput(app.input()));
-    (void)m_session.takeEvents();
 }
 
-void BreakoutGame::draw(gamelib::app::App&, gamelib::draw::DrawList& list, const gamelib::app::FrameInfo& info)
+void BreakoutGame::frame(gamelib::app::App& app, const gamelib::app::FrameInfo& info)
 {
-    const ViewState view{.session = m_session, .shapes = m_shapes, .alpha = info.alpha};
+    m_time = info.time;
+    m_gameOverDelay.update(info.seconds);
+    handleEvents(app);
+    m_scores.set(m_session.score());
+
+    if (m_gameEnded && m_gameOverDelay.ready() && m_screens.is(Screen::Playing)) {
+        m_gameEnded = false;
+        if (m_demoMode) {
+            startGame(app); // endless
+        } else {
+            saveBest();
+            showScreen(Screen::GameOver);
+            app.input().releaseAll();
+        }
+    }
+}
+
+void BreakoutGame::handleEvents(gamelib::app::App&)
+{
+    // The attract demo is silent and has no effects; its events are dropped.
+    (void)m_attract.sim().session.takeEvents();
+    for (const game::Event& event : m_session.takeEvents()) {
+        switch (event.kind) {
+        case game::EventKind::GameOver:
+            m_gameEnded = true;
+            m_gameOverDelay.start(kGameOverDelay);
+            break;
+        default: break;
+        }
+    }
+}
+
+void BreakoutGame::saveBest()
+{
+    m_profile.value().best = m_scores.best();
+    m_profile.save();
+}
+
+void BreakoutGame::draw(gamelib::app::App& app, gamelib::draw::DrawList& list, const gamelib::app::FrameInfo& info)
+{
+    const bool moving = m_screens.is(Screen::Playing) || m_screens.is(Screen::Title);
+    const ViewState view{.session = shownSession(),
+                         .shapes = m_shapes,
+                         .alpha = moving ? info.alpha : 1.0f,
+                         .best = m_scores.best()};
     drawBackdrop(list, view);
     drawField(list, view);
     drawHud(list, view);
+
+    const gamelib::core::Size canvas = app.canvas();
+    const gamelib::ui::MenuStyle style = menuStyle();
+    switch (m_screens.current()) {
+    case Screen::Playing: drawOverlay(list, info); break;
+    case Screen::Title: gamelib::ui::drawMenu(list, m_menus.title, canvas, style, {}, kTitleFooter); break;
+    case Screen::Paused: gamelib::ui::drawMenu(list, m_menus.paused, canvas, style); break;
+    case Screen::GameOver: {
+        std::string subtitle = "SCORE " + std::to_string(m_session.score()) + "   LEVEL " + std::to_string(m_session.level());
+        if (m_scores.isNewBest()) {
+            subtitle = "NEW BEST! " + subtitle;
+        }
+        gamelib::ui::drawMenu(list, m_menus.gameOver, canvas, style, subtitle);
+        break;
+    }
+    }
+}
+
+void BreakoutGame::drawOverlay(gamelib::draw::DrawList& list, const gamelib::app::FrameInfo& info)
+{
+    const Palette& colors = palette();
+    const float centerX = (game::kFieldLeft + game::kFieldRight) / 2.0f;
+    if (m_session.phase() == game::Phase::LevelClear) {
+        list.box({game::kFieldLeft, 380.0f, game::kFieldWidth, 300.0f}, colors.field.withAlpha(0.85f),
+                 {.glowWidth = 40.0f, .glowColor = colors.field.withAlpha(0.6f)});
+        list.text("LEVEL " + std::to_string(m_session.level()) + " CLEAR", centerX, 420.0f,
+                  {.pixelSize = 12.0f, .color = colors.accent, .align = Align::Center, .shadow = true});
+        list.text("BONUS +" + std::to_string(game::kLevelClearPoints * m_session.level()), centerX, 540.0f,
+                  {.pixelSize = 6.0f, .color = colors.text, .align = Align::Center});
+        if (m_session.canContinue() && std::fmod(info.time, 1.0f) < 0.7f) {
+            list.text("PRESS SPACE", centerX, 610.0f,
+                      {.pixelSize = 5.0f, .color = colors.textDim, .align = Align::Center});
+        }
+        return;
+    }
+    // The serve: a ball waits on the paddle.
+    const auto balls = m_session.balls();
+    if (!m_demoMode && balls.size() == 1 && balls.front().attached && !balls.front().caught) {
+        list.text("SPACE TO LAUNCH", centerX, 900.0f,
+                  {.pixelSize = 5.0f, .color = colors.textDim, .align = Align::Center});
+    }
+}
+
+void BreakoutGame::applySettings(gamelib::app::App& app)
+{
+    app.setFullscreen(m_profile.value().fullscreen);
+    app.audio().setMasterVolume(gamelib::audio::gain(m_profile.value().volume));
 }
 
 } // namespace breakout::app

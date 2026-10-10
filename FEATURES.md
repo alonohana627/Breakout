@@ -35,11 +35,20 @@ running the game are listed; updated in the same commit as each feature (see
   timer, steering) that aims varied returns, catches power-ups and misses now
   and then.
 
-## Controls
+## Controls and screens
 
 - Left/Right or A/D move the paddle; Space or Enter launches the ball (and
-  releases a caught one); Escape quits.
-- `--demo`: the computer plays, starting over after each game over.
+  releases a caught one); Escape or P pauses; F11 toggles fullscreen.
+- Title menu over a live attract demo (the demo player in a real game,
+  restarted when it ends); pause menu; a "SPACE TO LAUNCH" hint on the serve;
+  a level-clear screen with the bonus, continued with Space; a game-over
+  menu with score, level and "NEW BEST!" after a short delay; menu keys are
+  ignored briefly after it appears.
+- Settings in the title and pause menus: sound volume (off/low/medium/high),
+  screen shake on/off, fullscreen. Saved with the best score to
+  `breakout.ini` in the user data folder (`BREAKOUT_DATA_DIR` overrides it).
+- `--demo`: the computer plays on the playing screen, starting over after
+  each game over.
 
 ## Look (all procedural shaders)
 

@@ -20,7 +20,7 @@ function(breakout_smoke name)
         ENVIRONMENT_MODIFICATION "${_smoke_env}")
 endfunction()
 
-# The title screen (vsync on: about 10 s).
+# The title screen with the attract demo behind the menu.
 breakout_smoke(title --frames 600)
 # The demo player on the playing screen, unthrottled: serves, rallies, bricks
 # and power-ups with the validation layer watching every frame.
