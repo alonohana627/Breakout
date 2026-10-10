@@ -39,6 +39,7 @@ void Effects::update(const float seconds)
     shake.update(seconds);
     wallPulse.update(seconds);
     alarm.update(seconds);
+    levelIntro.update(seconds);
     popups.update(seconds);
     for (gamelib::fx::Fade& fade : m_brickFlash) {
         fade.update(seconds);
@@ -63,6 +64,7 @@ void Effects::clear()
     shake.clear();
     wallPulse.clear();
     alarm.clear();
+    levelIntro.clear();
     popups.clear();
     for (gamelib::fx::Fade& fade : m_brickFlash) {
         fade.clear();

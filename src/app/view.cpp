@@ -35,6 +35,15 @@ constexpr std::string_view _letter(const game::PowerType type)
     return "?";
 }
 
+
+// Overshoots a little past 1 and settles: a playful landing.
+float _easeOutBack(const float t)
+{
+    constexpr float c1 = 1.70158f;
+    constexpr float c3 = c1 + 1.0f;
+    const float u = t - 1.0f;
+    return 1.0f + c3 * u * u * u + c1 * u * u;
+}
 std::uint32_t _seed(const gamelib::core::Cell cell, const int level)
 {
     std::uint32_t h = static_cast<std::uint32_t>(cell.x * 73856093) ^ static_cast<std::uint32_t>(cell.y * 19349663)
@@ -90,9 +99,15 @@ void _brick(gamelib::draw::DrawList& list, const ViewState& view, const gamelib:
     case game::BrickKind::Normal:
     case game::BrickKind::None: break;
     }
-    list.add({.rect = _shifted(game::brickRect(cell).expanded(kBrickGlow), view.shake),
-              .color = body,
-              .color2 = light.withAlpha(glowAlpha),
+    // The level intro: rows drop in from above one after another and settle
+    // with a small overshoot.
+    const float rowDelay = 0.04f * static_cast<float>(cell.y) + 0.02f * static_cast<float>(cell.x % 3);
+    const float t = std::clamp((view.intro - rowDelay) / 0.55f, 0.0f, 1.0f);
+    const Vec2 drop{0.0f, -(1.0f - _easeOutBack(t)) * (110.0f + 14.0f * static_cast<float>(cell.y))};
+    const float appear = std::min(1.0f, t * 2.0f);
+    list.add({.rect = _shifted(game::brickRect(cell).expanded(kBrickGlow), view.shake + drop),
+              .color = body.withAlpha(appear),
+              .color2 = light.withAlpha(glowAlpha * appear),
               .shape = view.shapes.brick,
               .params = {damage, view.effects != nullptr ? view.effects->brickFlash(cell) : 0.0f, kBrickGlow, innerLight},
               .bits = std::uint64_t{_seed(cell, view.session.level())} | (std::uint64_t{kind} << 32)});
@@ -176,6 +191,20 @@ void drawField(gamelib::draw::DrawList& list, const ViewState& view)
 
     if (view.effects != nullptr) {
         view.effects->drawTrails(list, view.shake, colors.ballGlow);
+    }
+    if (view.launchGuide) {
+        // Dots along the path a waiting ball would take: the paddle's aim.
+        for (const game::Ball& ball : session.balls()) {
+            if (!ball.attached) {
+                continue;
+            }
+            const Vec2 from = ball.position.at(alpha) + view.shake;
+            const Vec2 direction = session.launchDirection(ball);
+            for (int i = 1; i <= 6; ++i) {
+                const float fade = 1.0f - static_cast<float>(i) / 7.0f;
+                list.circle(from + direction * (34.0f * static_cast<float>(i)), 3.5f, colors.ball.withAlpha(0.55f * fade));
+            }
+        }
     }
     // Faster balls glow hotter.
     const float heat = session.speedProgress();

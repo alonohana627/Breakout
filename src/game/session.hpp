@@ -161,6 +161,8 @@ public:
     [[nodiscard]] float powerSecondsLeft(PowerType type) const;
     // The level-clear wait has run out: the launch input continues.
     [[nodiscard]] bool canContinue() const { return m_phase == Phase::LevelClear && !m_clearDelay.running(); }
+    // The unit direction an attached ball would leave in if launched now.
+    [[nodiscard]] gamelib::core::Vec2 launchDirection(const Ball& ball) const { return returnOffPaddle(ball.position.value()); }
 
 private:
     void startLevel(int number);

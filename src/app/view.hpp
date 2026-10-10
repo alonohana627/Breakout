@@ -29,6 +29,8 @@ struct ViewState {
     float wallPulse = 0.0f;    // 0..1, level clear
     float alarm = 0.0f;        // 0..1, life lost
     const Effects* effects = nullptr; // none for the attract demo
+    float intro = 1.0f;        // 0..1 the level intro: bricks drop into place
+    bool launchGuide = false;  // dots showing where a waiting ball would go
 };
 
 // The color a brick of this kind shows (shards use it too).

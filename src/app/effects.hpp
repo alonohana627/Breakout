@@ -30,6 +30,8 @@ public:
 
     void update(float seconds);
     void clear();
+    // 0..1 how far the level intro has run (1 = bricks in place).
+    [[nodiscard]] float introProgress() const { return 1.0f - levelIntro.value(); }
 
     // A brick broke: a white flash over its rectangle and shards in its color.
     void shatter(const gamelib::core::Rect& brick, gamelib::core::Color color, gamelib::core::Vec2 ballVelocity);
@@ -54,6 +56,7 @@ public:
     gamelib::fx::Shake shake{0.5f, 20.0f};
     gamelib::fx::Fade wallPulse{1.4f};
     gamelib::fx::Fade alarm{0.9f};
+    gamelib::fx::Fade levelIntro{1.2f}; // 1 when a level starts, falling to 0 as its bricks settle
     gamelib::fx::Popups popups{64.0f, 0.45f};
 
 private:

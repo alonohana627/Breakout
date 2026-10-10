@@ -290,8 +290,12 @@ void BreakoutGame::handleEvents(gamelib::app::App& app)
             m_gameEnded = true;
             m_gameOverDelay.start(kGameOverDelay);
             break;
-        case game::EventKind::PowerUpMissed:
-        case game::EventKind::LevelStarted: break;
+        case game::EventKind::LevelStarted:
+            m_effects.levelIntro.trigger();
+            m_effects.popups.add("LEVEL " + std::to_string(m_session.level()) + "  " + m_session.levelName(), colors.paddleGlow,
+                                 1.6f);
+            break;
+        case game::EventKind::PowerUpMissed: break;
         }
     }
 }
@@ -313,7 +317,9 @@ void BreakoutGame::draw(gamelib::app::App& app, gamelib::draw::DrawList& list, c
                          .best = m_scores.best(),
                          .wallPulse = title ? 0.0f : m_effects.wallPulse.value(),
                          .alarm = title ? 0.0f : m_effects.alarm.value() * 0.5f,
-                         .effects = title ? nullptr : &m_effects};
+                         .effects = title ? nullptr : &m_effects,
+                         .intro = title ? 1.0f : m_effects.introProgress(),
+                         .launchGuide = m_screens.is(Screen::Playing) && !m_demoMode};
     drawBackdrop(list, view);
     if (!title) {
         // Under the bricks and balls: the popups never hide the play.
@@ -360,7 +366,7 @@ void BreakoutGame::drawOverlay(gamelib::draw::DrawList& list, const gamelib::app
     // The serve: a ball waits on the paddle.
     const auto balls = m_session.balls();
     if (!m_demoMode && balls.size() == 1 && balls.front().attached && !balls.front().caught) {
-        list.text("SPACE TO LAUNCH", centerX, 900.0f,
+        list.text("SPACE TO LAUNCH", centerX, 1028.0f,
                   {.pixelSize = 5.0f, .color = colors.textDim, .align = Align::Center});
     }
 }

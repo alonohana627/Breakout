@@ -88,4 +88,9 @@ running the game are listed; updated in the same commit as each feature (see
   and hotter as they speed up; the paddle flashes on contact.
 - Screen shake and a red alarm tint on a lost life (shake can be turned off
   in the settings); the walls pulse on a level clear.
-- Popups for combo milestones and caught power-ups, drawn under the play.
+- Popups for combo milestones, caught power-ups and the level name at each
+  level start, drawn under the play.
+- Level intro: the rows of bricks drop in one after another and settle with
+  a small overshoot.
+- On the serve, dotted aim guide from the waiting ball along its launch
+  direction (it follows where the ball sits on the paddle).
